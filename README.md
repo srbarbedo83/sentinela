@@ -29,13 +29,11 @@ perder sinais quando o PC está desligado nesta fase.
 - Ligação à internet.
 - Cerca de 30-40 minutos.
 
-### Passo 1 — Instalar o Python
+### Passo 1 — Confirmar o Python
 
-1. Vai a https://www.python.org/downloads/windows/ e descarrega o
-   instalador do **Python 3.11** (64-bit).
-2. Corre o instalador. **Importante**: na primeira janela, marca a caixa
-   **"Add python.exe to PATH"** antes de clicares em "Install Now". Sem
-   isto, o comando `python` não vai funcionar no PowerShell.
+Já tens o Python 3.13 instalado — serve perfeitamente, não precisas de
+instalar o 3.11 nem nenhuma outra versão. O Freqtrade e o TA-Lib (Passo 5)
+já suportam o 3.13 diretamente, com instalação pré-compilada.
 
 ### Passo 2 — Verificar a instalação
 
@@ -47,9 +45,9 @@ python --version
 pip --version
 ```
 
-Ambos devem devolver um número de versão, sem erros. Se aparecer erro
-"não reconhecido", fecha e reabre o PowerShell (ou reinicia o PC) — o
-PATH só é atualizado depois disso.
+Deves ver `Python 3.13.x` e um número de versão do pip, sem erros. Se
+aparecer erro "não reconhecido", o Python não ficou no PATH do sistema —
+avisa-me e ajustamos isso (não precisas de reinstalar).
 
 ### Passo 3 — Obter este projeto no teu PC
 
@@ -94,10 +92,10 @@ pip install freqtrade
 ```
 
 O `TA-Lib` é a biblioteca que calcula os indicadores técnicos (EMA, RSI,
-MACD, etc.). Se o comando `pip install TA-Lib` falhar com um erro de
-compilação, avisa-me — nesse caso instalamos a partir de um ficheiro
-pré-compilado (`.whl`) específico para a tua versão do Python, o que
-resolve sempre.
+MACD, etc.). Para Python 3.13 no Windows já existe um pacote
+pré-compilado, por isso o `pip install TA-Lib` deve simplesmente
+funcionar, sem precisar de compilar nada. Se ainda assim falhar, avisa-me
+com a mensagem de erro.
 
 Confirma no fim:
 
