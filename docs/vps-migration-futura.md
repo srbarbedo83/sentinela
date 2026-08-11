@@ -6,11 +6,14 @@ aqui está implementado — é só o plano para quando decidires avançar.
 
 ## Porque não agora
 
-O sistema foi montado com Docker, exatamente para que este passo seja uma
-mudança de "onde corre o Docker", não uma reescrita. O `docker-compose.yml`,
-o `user_data/` (estratégias, configuração, base de dados) e os scripts
-usados no PC podem, em princípio, ser copiados para o VPS quase sem
-alterações.
+A instalação local (Fase 1) é nativa (Python + ambiente virtual, sem
+Docker), por escolha deliberada, para evitar mexer em virtualização na
+BIOS. Isso não impede a migração futura — só significa que, no VPS,
+faz mais sentido correr o Freqtrade como um **serviço systemd** (Linux),
+em vez de depender de uma janela aberta como no Windows. O `user_data/`
+(estratégias, configuração, base de dados) pode ser copiado para o VPS
+quase sem alterações; o que muda é só a forma como o processo arranca e
+fica em segundo plano.
 
 ## Opção recomendada: Oracle Cloud (camada gratuita "Always Free")
 
@@ -19,20 +22,23 @@ alterações.
   ao contrário de "free trials" de 12 meses de outros fornecedores.
 - Passos futuros, em alto nível:
   1. Criar conta Oracle Cloud e ativar uma instância `Always Free` (Ubuntu).
-  2. Instalar Docker e Docker Compose na instância.
-  3. Copiar a pasta do projeto (`docker-compose.yml`, `user_data/`) para o
-     VPS via `git clone` ou `scp`.
+  2. Instalar Python e criar um ambiente virtual na instância, tal como no
+     PC Windows (ou, alternativamente, usar Docker no VPS mesmo que o PC
+     local não use — no Linux é mais simples e sem a fricção da BIOS).
+  3. Copiar a pasta do projeto (`user_data/`, `start.ps1` como referência)
+     para o VPS via `git clone` ou `scp`.
   4. Repor os segredos (chaves API, token Telegram, password do FreqUI) —
      nunca copiar o `config.json` real através do Git; transferir à parte
      (ex. `scp` direto ou copiar manualmente).
-  5. Ajustar `docker-compose.yml`: alterar `listen_ip_address` do
-     `api_server` e considerar um proxy reverso com HTTPS (ex. Caddy ou
-     Nginx) e autenticação, já que o painel passa a estar acessível pela
-     internet e não só na rede local.
-  6. Configurar firewall da instância (Oracle Cloud + `ufw` no Ubuntu) para
+  5. Criar um serviço `systemd` (ou usar Docker com
+     `restart: unless-stopped`) para que o Freqtrade arranque sozinho e
+     se mantenha em segundo plano, sobrevivendo a reinícios do VPS.
+  6. Ajustar `api_server.listen_ip_address` no `config.json` e considerar
+     um proxy reverso com HTTPS (ex. Caddy ou Nginx) e autenticação, já
+     que o painel passa a estar acessível pela internet e não só na rede
+     local.
+  7. Configurar firewall da instância (Oracle Cloud + `ufw` no Ubuntu) para
      só abrir as portas estritamente necessárias.
-  7. Configurar arranque automático do Docker Compose ao reiniciar o VPS
-     (`restart: unless-stopped` já está definido no `docker-compose.yml`).
 
 ## Alternativas mais simples (com custo)
 
