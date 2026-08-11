@@ -134,9 +134,13 @@ substitui, dentro de `"api_server"`:
   de passwords).
 
 Não precisas de mexer em mais nada neste ficheiro por agora. Em
-particular, `exchange.key` e `exchange.secret` ficam vazios — só serão
-preenchidos quando chegarmos à Fase 5 (modo real), e mesmo assim com
-chaves sem permissão de levantamento.
+particular, `exchange.key` e `exchange.secret` ficam com valores de
+preenchimento óbviamente falsos (`dryrun-placeholder-key` /
+`dryrun-placeholder-secret`) — o CCXT exige que estes campos não estejam
+vazios mesmo só para consultar dados públicos, mas o seu conteúdo não
+importa em dry-run. As tuas chaves reais só serão preenchidas quando
+chegarmos à Fase 5 (modo real), e mesmo assim sem permissão de
+levantamento.
 
 ### Passo 8 — Arrancar o Freqtrade
 
