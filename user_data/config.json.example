@@ -31,8 +31,8 @@
 
     "exchange": {
         "name": "binance",
-        "key": "",
-        "secret": "",
+        "key": "dryrun-placeholder-key",
+        "secret": "dryrun-placeholder-secret",
         "ccxt_config": {
             "options": {
                 "fetchCurrencies": false,
