@@ -42,12 +42,12 @@ corre:
 
 ```powershell
 python --version
-pip --version
+python -m pip --version
 ```
 
-Deves ver `Python 3.13.x` e um número de versão do pip, sem erros. Se
-aparecer erro "não reconhecido", o Python não ficou no PATH do sistema —
-avisa-me e ajustamos isso (não precisas de reinstalar).
+Deves ver `Python 3.13.x` e um número de versão do pip, sem erros.
+Usamos sempre `python -m pip` em vez de `pip` sozinho — funciona mesmo
+que o `pip` não esteja diretamente no PATH do Windows.
 
 ### Passo 3 — Obter este projeto no teu PC
 
@@ -87,8 +87,8 @@ Com o ambiente virtual ativo (`(.venv)` visível):
 
 ```powershell
 python -m pip install --upgrade pip
-pip install TA-Lib
-pip install freqtrade
+python -m pip install TA-Lib
+python -m pip install freqtrade
 ```
 
 O `TA-Lib` é a biblioteca que calcula os indicadores técnicos (EMA, RSI,
