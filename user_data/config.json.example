@@ -35,7 +35,10 @@
         "secret": "",
         "ccxt_config": {
             "options": {
-                "fetchCurrencies": false
+                "fetchCurrencies": false,
+                "fetchMarkets": {
+                    "types": ["spot"]
+                }
             }
         },
         "ccxt_async_config": {},
