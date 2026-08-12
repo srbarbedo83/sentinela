@@ -12,4 +12,4 @@ Set-Location -Path $PSScriptRoot
 freqtrade download-data `
     --config user_data\config.json `
     --timeframe 1h `
-    --days 180
+    --days 365
