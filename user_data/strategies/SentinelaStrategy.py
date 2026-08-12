@@ -29,15 +29,19 @@ PESO_RSI = 1.0                 # RSI (sobrecompra / sobrevenda)
 PESO_MACD = 1.0                # MACD
 PESO_BANDAS_BOLLINGER = 1.0    # Bandas de Bollinger
 PESO_VOLUME = 1.0              # Picos de volume anomalos
-PESO_ICHIMOKU = 1.0            # Contexto Ichimoku (voto ja limitado a -2..+2)
+
+# Ichimoku DESLIGADO por defeito (peso 0) - em backtest, combinado com o
+# ADX, piorou os resultados em vez de ajudar. O codigo fica disponivel
+# para retomarmos e calibrarmos com calma mais tarde, um de cada vez.
+PESO_ICHIMOKU = 0.0            # Contexto Ichimoku (voto ja limitado a -2..+2)
 
 # Soma minima (em valor absoluto) de votos ponderados para gerar um sinal.
-# Quanto mais alto, mais indicadores precisam de concordar entre si. Com os
-# pesos de partida acima, o maximo teorico da pontuacao e 7.0 (EMA, RSI,
-# MACD, Bollinger e Volume contribuem ate 1 cada; Ichimoku ate 2). Este
-# valor de partida (4.0) e so um ponto de partida - ajusta-o com base nos
-# resultados do backtest, tal como o resto.
-LIMIAR_DECISAO = 4.0
+# Quanto mais alto, mais indicadores precisam de concordar entre si. Com
+# Ichimoku desligado (peso 0), o maximo teorico da pontuacao e 5.0 (EMA,
+# RSI, MACD, Bollinger e Volume, ate 1 cada). Este valor (3.0 = "3 de 5"
+# a concordar) foi o validado em backtest - ajusta-o com cautela, testando
+# sempre depois.
+LIMIAR_DECISAO = 3.0
 
 # ============================================================================
 # PARAMETROS DE CADA INDICADOR
@@ -72,9 +76,11 @@ ICHIMOKU_DESLOCAMENTO = 26  # deslocamento da nuvem (Kumo), padrao tradicional
 #   20-25       transicao
 #   25-35       tendencia interessante
 #   > 35        tendencia forte
-# Testa este valor no backtest antes de o dares como definitivo.
+# DESLIGADO por defeito (0 = nunca bloqueia) pelo mesmo motivo do
+# Ichimoku - piorou os resultados nesta primeira tentativa. Testa este
+# valor com cuidado antes de o subires de novo.
 ADX_PERIODO = 14
-ADX_LIMIAR_MINIMO = 20
+ADX_LIMIAR_MINIMO = 0
 
 # ATR tambem nao vota no score - alimenta o stop-loss dinamico (ver
 # custom_stoploss mais abaixo): quanto mais volatil o mercado, mais largo
@@ -87,8 +93,9 @@ ADX_LIMIAR_MINIMO = 20
 # USAR_STOP_DINAMICO_ATR: poe a False para desligar o stop dinamico e
 # voltares ao stoploss fixo (-10%) em todas as posicoes - util para
 # comparares em backtest se o stop dinamico esta a ajudar ou a atrapalhar,
-# sem precisares de apagar codigo.
-USAR_STOP_DINAMICO_ATR = True
+# sem precisares de apagar codigo. DESLIGADO por defeito - em backtest,
+# o stop fixo (-10%) teve melhor resultado do que o dinamico por ATR.
+USAR_STOP_DINAMICO_ATR = False
 ATR_PERIODO = 14
 ATR_STOPLOSS_MULTIPLICADOR = 3.0
 ATR_STOPLOSS_MINIMO = 0.03  # nunca mais apertado que 3%, seja qual for o ATR
