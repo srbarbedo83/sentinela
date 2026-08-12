@@ -185,10 +185,22 @@ Volta à janela do PowerShell onde correste `start.ps1` e pressiona
 `Ctrl+C`. Para arrancar de novo mais tarde, repete o Passo 9 (não
 precisas de repetir os passos de instalação, incluindo o `install-ui`).
 
+## Fase 2 — Estratégia com indicadores ponderados
+
+O ficheiro `user_data/strategies/SentinelaStrategy.py` implementa a
+votação ponderada entre 5 indicadores (EMA 50/200, RSI, MACD, Bandas de
+Bollinger e picos de volume). **Todos os pesos e o limiar de decisão
+estão isolados num único bloco no topo do ficheiro**, com comentários em
+português — é aí que ajustas o comportamento, sem precisares de mexer no
+resto do código.
+
+Esta estratégia ainda não está a correr (o `start.ps1` continua a usar a
+`SentinelaPlaceholderStrategy` da Fase 1, que não compra nada). Antes de
+a pormos a correr, mesmo em dry-run, vamos validá-la com dados
+históricos reais — isso é a Fase 3 (backtesting), a seguir.
+
 ## Próximas fases (ainda não implementadas)
 
-2. Estratégia real com indicadores técnicos ponderados (EMA, RSI, MACD,
-   Bandas de Bollinger, Volume/OBV) e votação ponderada configurável.
 3. Backtesting com dados históricos.
 4. Dry-run prolongado (semanas) antes de dinheiro real.
 5. Modo real com €100 e risco reduzido (2-3% por operação), incluindo
