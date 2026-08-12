@@ -12,6 +12,10 @@
 
     "timeframe": "1h",
 
+    "pairlists": [
+        {"method": "StaticPairList"}
+    ],
+
     "minimal_roi": {
         "0": 0.10
     },
