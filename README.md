@@ -187,12 +187,23 @@ precisas de repetir os passos de instalação, incluindo o `install-ui`).
 
 ## Fase 2 — Estratégia com indicadores ponderados
 
-O ficheiro `user_data/strategies/SentinelaStrategy.py` implementa a
-votação ponderada entre 5 indicadores (EMA 50/200, RSI, MACD, Bandas de
-Bollinger e picos de volume). **Todos os pesos e o limiar de decisão
+O ficheiro `user_data/strategies/SentinelaStrategy.py` implementa uma
+votação ponderada entre indicadores técnicos. **Todos os pesos e limiares
 estão isolados num único bloco no topo do ficheiro**, com comentários em
 português — é aí que ajustas o comportamento, sem precisares de mexer no
-resto do código.
+resto do código. Estrutura em três camadas:
+
+- **Votos ponderados** (entram na pontuação): EMA 50/200 (tendência),
+  RSI (momentum), MACD (momentum/tendência), Bandas de Bollinger
+  (volatilidade), picos de volume, e Ichimoku (Tenkan/Kijun/nuvem, como
+  voto de contexto limitado a ±2 para não dominar os outros).
+- **Filtro de regime** (não entra na pontuação): ADX — só permite abrir
+  posições novas quando há tendência suficiente no mercado, mesmo que a
+  pontuação dos outros indicadores atinja o limiar. Não afeta saídas.
+- **Gestão de risco** (não entra na pontuação): ATR — alimenta um
+  stop-loss dinâmico (mais apertado em mercados calmos, mais largo em
+  mercados voláteis), sempre limitado pelo `stoploss` fixo definido na
+  estratégia, que continua obrigatório sem exceção em qualquer posição.
 
 Esta estratégia ainda não está a correr (o `start.ps1` continua a usar a
 `SentinelaPlaceholderStrategy` da Fase 1, que não compra nada). Antes de

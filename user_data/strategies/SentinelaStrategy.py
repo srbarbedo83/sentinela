@@ -7,30 +7,37 @@ from freqtrade.strategy import IStrategy
 # ============================================================================
 # PESOS DOS INDICADORES E LIMIAR DE DECISAO
 #
-# Cada indicador "vota" +1 (a favor de comprar), -1 (a favor de vender) ou
-# 0 (neutro) em cada vela. O peso abaixo multiplica esse voto. A soma de
-# todos os votos ponderados é a "pontuacao":
+# Cada indicador "vota" a favor de comprar (positivo), a favor de vender
+# (negativo) ou fica neutro (0) em cada vela. O peso abaixo multiplica esse
+# voto. A soma de todos os votos ponderados e a "pontuacao":
 #
-#   pontuacao >= LIMIAR_DECISAO   -> sinal de COMPRA
+#   pontuacao >= LIMIAR_DECISAO   -> sinal de COMPRA (sujeito ao filtro ADX)
 #   pontuacao <= -LIMIAR_DECISAO  -> sinal de VENDA
 #   caso contrario                -> nao faz nada
 #
 # Para dares mais importancia a um indicador, aumenta o peso dele. Para o
 # desativares por completo, poe o peso a 0. Nao precisas de mexer em mais
 # nada neste ficheiro para ajustar o comportamento da estrategia.
+#
+# NOTA: ATR e ADX nao estao nesta lista de pesos de proposito. Sao usados
+# de forma diferente dos outros (ver mais abaixo) - ATR para o stop-loss
+# dinamico, ADX como "filtro de regime" que liga/desliga as entradas,
+# em vez de votarem a favor ou contra.
 # ============================================================================
 PESO_TENDENCIA_EMA = 1.0       # Cruzamento EMA curta / EMA longa
 PESO_RSI = 1.0                 # RSI (sobrecompra / sobrevenda)
 PESO_MACD = 1.0                # MACD
 PESO_BANDAS_BOLLINGER = 1.0    # Bandas de Bollinger
 PESO_VOLUME = 1.0              # Picos de volume anomalos
+PESO_ICHIMOKU = 1.0            # Contexto Ichimoku (voto ja limitado a -2..+2)
 
 # Soma minima (em valor absoluto) de votos ponderados para gerar um sinal.
-# Quanto mais alto, mais indicadores precisam de concordar entre si.
-# Com os 5 pesos a 1.0 acima, o maximo possivel e 5.0 (todos a votar no
-# mesmo sentido) e o minimo para gerar sinal com este LIMIAR e "3 de 5"
-# indicadores concordarem.
-LIMIAR_DECISAO = 3.0
+# Quanto mais alto, mais indicadores precisam de concordar entre si. Com os
+# pesos de partida acima, o maximo teorico da pontuacao e 7.0 (EMA, RSI,
+# MACD, Bollinger e Volume contribuem ate 1 cada; Ichimoku ate 2). Este
+# valor de partida (4.0) e so um ponto de partida - ajusta-o com base nos
+# resultados do backtest, tal como o resto.
+LIMIAR_DECISAO = 4.0
 
 # ============================================================================
 # PARAMETROS DE CADA INDICADOR
@@ -52,12 +59,38 @@ BOLLINGER_DESVIO = 2.0
 VOLUME_MEDIA_PERIODO = 20
 VOLUME_MULTIPLICADOR_PICO = 1.5  # volume > media * este valor conta como "pico"
 
+ICHIMOKU_TENKAN = 9
+ICHIMOKU_KIJUN = 26
+ICHIMOKU_SENKOU_B = 52
+ICHIMOKU_DESLOCAMENTO = 26  # deslocamento da nuvem (Kumo), padrao tradicional
+
+# ADX nao vota no score - funciona como "filtro de regime": abaixo deste
+# valor, o mercado e considerado sem tendencia definida e NAO SE ABREM
+# posicoes novas, seja qual for a pontuacao dos outros indicadores. Serve
+# de referencia (nao usado diretamente no codigo):
+#   ADX < 20    mercado fraco / lateral
+#   20-25       transicao
+#   25-35       tendencia interessante
+#   > 35        tendencia forte
+# Testa este valor no backtest antes de o dares como definitivo.
+ADX_PERIODO = 14
+ADX_LIMIAR_MINIMO = 20
+
+# ATR tambem nao vota no score - alimenta o stop-loss dinamico (ver
+# custom_stoploss mais abaixo): quanto mais volatil o mercado, mais largo
+# o stop; quanto mais calmo, mais apertado. Nunca ultrapassa o `stoploss`
+# fixo definido na classe, que continua a ser a rede de seguranca final.
+ATR_PERIODO = 14
+ATR_STOPLOSS_MULTIPLICADOR = 2.0
+
 
 class SentinelaStrategy(IStrategy):
     """
-    Estrategia de votacao ponderada entre 5 indicadores tecnicos.
-    Ajusta os pesos e o LIMIAR_DECISAO no topo deste ficheiro para
-    mudares o comportamento, sem tocar no resto do codigo.
+    Estrategia de votacao ponderada entre indicadores tecnicos, com um
+    filtro de regime (ADX) e stop-loss dinamico (ATR).
+
+    Ajusta os pesos, o LIMIAR_DECISAO e o ADX_LIMIAR_MINIMO no topo deste
+    ficheiro para mudares o comportamento, sem tocar no resto do codigo.
     """
 
     INTERFACE_VERSION = 3
@@ -69,9 +102,14 @@ class SentinelaStrategy(IStrategy):
     can_short = False
 
     # Valores de partida conservadores; revistos em detalhe na fase de
-    # gestao de risco (stake sizing, stop-loss, limites diarios).
+    # gestao de risco (stake sizing, limites diarios). O stoploss aqui e
+    # sempre o limite maximo absoluto - o stop dinamico do ATR nunca o
+    # ultrapassa (ver custom_stoploss).
     stoploss = -0.10
     minimal_roi = {"0": 0.10}
+
+    # Ativa o stop-loss dinamico baseado em ATR (ver custom_stoploss).
+    use_custom_stoploss = True
 
     process_only_new_candles = True
     startup_candle_count = 210  # cobre a EMA mais longa (200) com margem
@@ -94,7 +132,7 @@ class SentinelaStrategy(IStrategy):
         dataframe["macd"] = macd["macd"]
         dataframe["macdsignal"] = macd["macdsignal"]
 
-        # --- Volatilidade: Bandas de Bollinger ---
+        # --- Volatilidade (voto): Bandas de Bollinger ---
         bollinger = ta.BBANDS(
             dataframe,
             timeperiod=BOLLINGER_PERIODO,
@@ -109,6 +147,31 @@ class SentinelaStrategy(IStrategy):
         dataframe["volume_pico"] = dataframe["volume"] > (
             dataframe["volume_media"] * VOLUME_MULTIPLICADOR_PICO
         )
+
+        # --- Contexto: Ichimoku (Tenkan, Kijun, nuvem/Kumo) ---
+        dataframe["ichimoku_tenkan"] = (
+            dataframe["high"].rolling(ICHIMOKU_TENKAN).max()
+            + dataframe["low"].rolling(ICHIMOKU_TENKAN).min()
+        ) / 2
+        dataframe["ichimoku_kijun"] = (
+            dataframe["high"].rolling(ICHIMOKU_KIJUN).max()
+            + dataframe["low"].rolling(ICHIMOKU_KIJUN).min()
+        ) / 2
+        senkou_a = (dataframe["ichimoku_tenkan"] + dataframe["ichimoku_kijun"]) / 2
+        senkou_b = (
+            dataframe["high"].rolling(ICHIMOKU_SENKOU_B).max()
+            + dataframe["low"].rolling(ICHIMOKU_SENKOU_B).min()
+        ) / 2
+        # A nuvem e projetada para a frente - por isso o desvio (shift).
+        dataframe["ichimoku_senkou_a"] = senkou_a.shift(ICHIMOKU_DESLOCAMENTO)
+        dataframe["ichimoku_senkou_b"] = senkou_b.shift(ICHIMOKU_DESLOCAMENTO)
+
+        # --- Regime: ADX (forca da tendencia, nao a direcao) ---
+        dataframe["adx"] = ta.ADX(dataframe, timeperiod=ADX_PERIODO)
+        dataframe["regime_com_tendencia"] = dataframe["adx"] > ADX_LIMIAR_MINIMO
+
+        # --- Risco: ATR (usado no stop-loss dinamico, nao no score) ---
+        dataframe["atr"] = ta.ATR(dataframe, timeperiod=ATR_PERIODO)
 
         # ------------------------------------------------------------------
         # Voto individual de cada indicador: +1 compra, -1 venda, 0 neutro
@@ -139,6 +202,42 @@ class SentinelaStrategy(IStrategy):
             "voto_volume",
         ] = -1
 
+        # Ichimoku: 3 sub-condicoes simples somadas, depois limitadas (clip)
+        # a -2..+2 - para nao deixar este indicador, sozinho, dominar a
+        # pontuacao final so por ter varias componentes internas.
+        nuvem_topo = dataframe[["ichimoku_senkou_a", "ichimoku_senkou_b"]].max(axis=1)
+        nuvem_base = dataframe[["ichimoku_senkou_a", "ichimoku_senkou_b"]].min(axis=1)
+
+        dataframe["ichimoku_voto_preco_nuvem"] = 0
+        dataframe.loc[dataframe["close"] > nuvem_topo, "ichimoku_voto_preco_nuvem"] = 1
+        dataframe.loc[dataframe["close"] < nuvem_base, "ichimoku_voto_preco_nuvem"] = -1
+
+        dataframe["ichimoku_voto_tenkan_kijun"] = 0
+        dataframe.loc[
+            dataframe["ichimoku_tenkan"] > dataframe["ichimoku_kijun"],
+            "ichimoku_voto_tenkan_kijun",
+        ] = 1
+        dataframe.loc[
+            dataframe["ichimoku_tenkan"] < dataframe["ichimoku_kijun"],
+            "ichimoku_voto_tenkan_kijun",
+        ] = -1
+
+        dataframe["ichimoku_voto_chikou"] = 0
+        dataframe.loc[
+            dataframe["close"] > dataframe["close"].shift(ICHIMOKU_DESLOCAMENTO),
+            "ichimoku_voto_chikou",
+        ] = 1
+        dataframe.loc[
+            dataframe["close"] < dataframe["close"].shift(ICHIMOKU_DESLOCAMENTO),
+            "ichimoku_voto_chikou",
+        ] = -1
+
+        dataframe["voto_ichimoku"] = (
+            dataframe["ichimoku_voto_preco_nuvem"]
+            + dataframe["ichimoku_voto_tenkan_kijun"]
+            + dataframe["ichimoku_voto_chikou"]
+        ).clip(-2, 2)
+
         # ------------------------------------------------------------------
         # Pontuacao final: soma dos votos, cada um multiplicado pelo seu peso
         # ------------------------------------------------------------------
@@ -148,20 +247,48 @@ class SentinelaStrategy(IStrategy):
             + dataframe["voto_macd"] * PESO_MACD
             + dataframe["voto_bollinger"] * PESO_BANDAS_BOLLINGER
             + dataframe["voto_volume"] * PESO_VOLUME
+            + dataframe["voto_ichimoku"] * PESO_ICHIMOKU
         )
 
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe.loc[
-            dataframe["pontuacao"] >= LIMIAR_DECISAO,
-            ["enter_long", "enter_tag"],
-        ] = (1, "votacao_ponderada")
+        # O filtro de regime (ADX) so permite entradas quando ha tendencia
+        # suficiente - mesmo que a pontuacao dos outros indicadores atinja
+        # o limiar, sem isto nao se abre posicao.
+        condicao_entrada = (dataframe["pontuacao"] >= LIMIAR_DECISAO) & dataframe[
+            "regime_com_tendencia"
+        ]
+        dataframe.loc[condicao_entrada, ["enter_long", "enter_tag"]] = (1, "votacao_ponderada")
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        # As saidas NAO ficam sujeitas ao filtro de regime - queremos
+        # poder sair de uma posicao a qualquer momento, tendencia ou nao.
         dataframe.loc[
             dataframe["pontuacao"] <= -LIMIAR_DECISAO,
             ["exit_long", "exit_tag"],
         ] = (1, "votacao_ponderada")
         return dataframe
+
+    def custom_stoploss(
+        self, pair: str, trade, current_time, current_rate: float, current_profit: float, **kwargs
+    ) -> float:
+        """
+        Stop-loss dinamico baseado no ATR: mais apertado em mercados
+        calmos, mais largo em mercados volateis - mas NUNCA mais largo do
+        que o `stoploss` fixo definido acima, que continua a ser
+        obrigatorio e sem excecao em qualquer posicao aberta.
+        """
+        dataframe, _ = self.dp.get_analyzed_dataframe(pair=pair, timeframe=self.timeframe)
+        if dataframe is None or dataframe.empty:
+            return self.stoploss
+
+        atr_atual = dataframe["atr"].iat[-1]
+        if atr_atual is None or atr_atual <= 0 or trade.open_rate <= 0:
+            return self.stoploss
+
+        distancia_atr = (atr_atual * ATR_STOPLOSS_MULTIPLICADOR) / trade.open_rate
+        # max() entre dois valores negativos escolhe o mais "apertado" dos
+        # dois, sem nunca ultrapassar o stoploss fixo (rede de seguranca).
+        return max(-distancia_atr, self.stoploss)
