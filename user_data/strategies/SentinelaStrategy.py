@@ -78,10 +78,14 @@ ADX_LIMIAR_MINIMO = 20
 
 # ATR tambem nao vota no score - alimenta o stop-loss dinamico (ver
 # custom_stoploss mais abaixo): quanto mais volatil o mercado, mais largo
-# o stop; quanto mais calmo, mais apertado. Nunca ultrapassa o `stoploss`
-# fixo definido na classe, que continua a ser a rede de seguranca final.
+# o stop; quanto mais calmo, mais apertado. Fica sempre limitado entre
+# ATR_STOPLOSS_MINIMO (nunca mais apertado do que isto, mesmo em mercados
+# muito calmos - ATR de 1h sozinho e demasiado pequeno para servir de
+# stop direto) e o `stoploss` fixo definido na classe (nunca mais largo
+# do que isto - rede de seguranca final, sem excecao).
 ATR_PERIODO = 14
-ATR_STOPLOSS_MULTIPLICADOR = 2.0
+ATR_STOPLOSS_MULTIPLICADOR = 3.0
+ATR_STOPLOSS_MINIMO = 0.03  # nunca mais apertado que 3%, seja qual for o ATR
 
 
 class SentinelaStrategy(IStrategy):
@@ -276,9 +280,11 @@ class SentinelaStrategy(IStrategy):
     ) -> float:
         """
         Stop-loss dinamico baseado no ATR: mais apertado em mercados
-        calmos, mais largo em mercados volateis - mas NUNCA mais largo do
-        que o `stoploss` fixo definido acima, que continua a ser
-        obrigatorio e sem excecao em qualquer posicao aberta.
+        calmos, mais largo em mercados volateis - mas sempre dentro dos
+        limites ATR_STOPLOSS_MINIMO..stoploss definidos acima. Sem este
+        limite minimo, um ATR de 1h sozinho da uma distancia demasiado
+        pequena e o stop dispara por ruido normal do mercado, nao por
+        reversao real (foi exatamente isto que o backtest revelou).
         """
         dataframe, _ = self.dp.get_analyzed_dataframe(pair=pair, timeframe=self.timeframe)
         if dataframe is None or dataframe.empty:
@@ -289,6 +295,10 @@ class SentinelaStrategy(IStrategy):
             return self.stoploss
 
         distancia_atr = (atr_atual * ATR_STOPLOSS_MULTIPLICADOR) / trade.open_rate
-        # max() entre dois valores negativos escolhe o mais "apertado" dos
-        # dois, sem nunca ultrapassar o stoploss fixo (rede de seguranca).
+        distancia_atr = max(distancia_atr, ATR_STOPLOSS_MINIMO)  # nunca mais apertado que o minimo
+
+        # max() entre dois numeros negativos devolve o mais proximo de
+        # zero (o mais apertado) - por isso isto garante que o resultado
+        # nunca fica mais LARGO do que o stoploss fixo (-10% por
+        # defeito), que assim continua a ser o limite maximo absoluto.
         return max(-distancia_atr, self.stoploss)
