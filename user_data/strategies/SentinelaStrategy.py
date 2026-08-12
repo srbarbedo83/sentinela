@@ -83,6 +83,12 @@ ADX_LIMIAR_MINIMO = 20
 # muito calmos - ATR de 1h sozinho e demasiado pequeno para servir de
 # stop direto) e o `stoploss` fixo definido na classe (nunca mais largo
 # do que isto - rede de seguranca final, sem excecao).
+#
+# USAR_STOP_DINAMICO_ATR: poe a False para desligar o stop dinamico e
+# voltares ao stoploss fixo (-10%) em todas as posicoes - util para
+# comparares em backtest se o stop dinamico esta a ajudar ou a atrapalhar,
+# sem precisares de apagar codigo.
+USAR_STOP_DINAMICO_ATR = True
 ATR_PERIODO = 14
 ATR_STOPLOSS_MULTIPLICADOR = 3.0
 ATR_STOPLOSS_MINIMO = 0.03  # nunca mais apertado que 3%, seja qual for o ATR
@@ -286,6 +292,9 @@ class SentinelaStrategy(IStrategy):
         pequena e o stop dispara por ruido normal do mercado, nao por
         reversao real (foi exatamente isto que o backtest revelou).
         """
+        if not USAR_STOP_DINAMICO_ATR:
+            return self.stoploss
+
         dataframe, _ = self.dp.get_analyzed_dataframe(pair=pair, timeframe=self.timeframe)
         if dataframe is None or dataframe.empty:
             return self.stoploss
