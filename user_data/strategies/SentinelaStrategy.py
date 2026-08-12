@@ -121,6 +121,17 @@ class SentinelaStrategy(IStrategy):
     # Ativa o stop-loss dinamico baseado em ATR (ver custom_stoploss).
     use_custom_stoploss = True
 
+    # DESLIGADO DE PROPOSITO PARA TESTE: em todos os backtests feitos ate
+    # agora, a saida por sinal contrario (populate_exit_trend, tag
+    # "votacao_ponderada") teve sempre uma taxa de acerto muito baixa
+    # (~16-17%) e perda media de ~-2.6% - sistematicamente pior do que as
+    # saidas por ROI ou stop-loss. Hipotese: o sinal de saida exige tanta
+    # concordancia como o de entrada, por isso chega tarde, depois do
+    # preco ja ter virado contra a posicao. Com isto a False, so o ROI e
+    # o stop-loss fecham posicoes - populate_exit_trend fica no codigo,
+    # mas ignorado, para testarmos a diferenca. Poe a True para reativar.
+    use_exit_signal = False
+
     process_only_new_candles = True
     startup_candle_count = 210  # cobre a EMA mais longa (200) com margem
 
