@@ -142,7 +142,16 @@ importa em dry-run. As tuas chaves reais só serão preenchidas quando
 chegarmos à Fase 5 (modo real), e mesmo assim sem permissão de
 levantamento.
 
-### Passo 8 — Arrancar o Freqtrade
+### Passo 8 — Instalar o painel (FreqUI)
+
+O painel web não vem instalado por defeito — é um passo à parte. Com o
+ambiente virtual ativo (`(.venv)` visível):
+
+```powershell
+freqtrade install-ui
+```
+
+### Passo 9 — Arrancar o Freqtrade
 
 O repositório já tem um script `start.ps1` que ativa o ambiente virtual e
 arranca o bot com a configuração certa. A partir da pasta do projeto:
@@ -160,7 +169,7 @@ Esta janela fica "presa" a mostrar os logs do bot em direto — é normal,
 arrancou, ligou à Binance (dados públicos, sem chaves) e está em modo
 `dry_run`.
 
-### Passo 9 — Confirmar no painel
+### Passo 10 — Confirmar no painel
 
 Com o `start.ps1` a correr, abre o browser em **http://127.0.0.1:8080**
 — deve aparecer o ecrã de login do FreqUI. Entra com o utilizador
@@ -173,8 +182,8 @@ deve mostrar "running" e modo "Dry run".
 ### Para parar o bot
 
 Volta à janela do PowerShell onde correste `start.ps1` e pressiona
-`Ctrl+C`. Para arrancar de novo mais tarde, repete o Passo 8 (não
-precisas de repetir os passos de instalação).
+`Ctrl+C`. Para arrancar de novo mais tarde, repete o Passo 9 (não
+precisas de repetir os passos de instalação, incluindo o `install-ui`).
 
 ## Próximas fases (ainda não implementadas)
 
