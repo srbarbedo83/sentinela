@@ -199,9 +199,56 @@ Esta estratégia ainda não está a correr (o `start.ps1` continua a usar a
 a pormos a correr, mesmo em dry-run, vamos validá-la com dados
 históricos reais — isso é a Fase 3 (backtesting), a seguir.
 
+## Fase 3 — Backtesting
+
+Testar a estratégia contra dados históricos reais, sem dinheiro nenhum
+envolvido (nem sequer simulado em tempo real — é só matemática sobre o
+passado).
+
+### Passo 1 — Descarregar dados históricos
+
+```powershell
+.\download-data.ps1
+```
+
+Descarrega 180 dias (~6 meses) de velas de 1 hora para os 4 pares
+(`BTC/USDT`, `ETH/USDT`, `SOL/USDT`, `PENDLE/USDT`) diretamente da
+Binance, usando as ferramentas nativas do Freqtrade. Fica guardado em
+`user_data/data/binance/` (não vai para o Git — é só dados, recriáveis a
+qualquer momento).
+
+### Passo 2 — Correr o backtest
+
+```powershell
+.\backtest.ps1
+```
+
+No final, o Freqtrade imprime uma tabela-resumo por par e uma tabela
+total. As colunas mais importantes:
+
+- **Trades** — quantas operações a estratégia teria feito.
+- **Tot Profit %** — resultado total no período, em percentagem.
+- **Win %** — percentagem de operações fechadas com lucro.
+- **Avg Duration** — duração média de cada operação.
+- **Max Drawdown** — a maior queda (pico a vale) da carteira simulada
+  durante o período. É um dos números mais importantes para avaliar
+  risco, não só retorno.
+
+### Passo 3 — Ajustar e repetir
+
+Se os resultados não parecerem bons (poucas operações, drawdown muito
+alto, prejuízo), volta a `user_data/strategies/SentinelaStrategy.py`,
+ajusta os pesos ou o `LIMIAR_DECISAO`, e corre `.\backtest.ps1` outra
+vez — não precisas de descarregar os dados de novo, só repetir este
+passo. Isto é normal e esperado: a Fase 3 existe exatamente para
+experimentar antes de arriscar dinheiro, mesmo simulado.
+
+**Nota importante:** um bom resultado em backtesting não garante nada
+sobre o futuro — serve para eliminar estratégias claramente más antes de
+gastarmos semanas em dry-run. A validação a sério vem nas Fases 4 e 5.
+
 ## Próximas fases (ainda não implementadas)
 
-3. Backtesting com dados históricos.
 4. Dry-run prolongado (semanas) antes de dinheiro real.
 5. Modo real com €100 e risco reduzido (2-3% por operação), incluindo
    Telegram, email para alertas críticos, orçamentos por estratégia e
